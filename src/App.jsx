@@ -4,6 +4,7 @@ import ListaDeCartas from './ListaDeCartas'
 
 function App() {
   return(
+    <div className="bg-light min-vh-100 d-flex flex-column">
     <div className="App">
       <header className="App-header">
         <h1 className="App-title">PokeDex Digital</h1>
@@ -18,6 +19,7 @@ function App() {
         <p>Dados da API Pokemon TCG</p>
       </footer>
     </div>
+  </div>
   );
 }
 export default App;
