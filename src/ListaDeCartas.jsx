@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import styles from './ListaDeCartas.module.css';
 
 function ListaDeCartas() {
   
@@ -9,10 +10,8 @@ function ListaDeCartas() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredCartas, setFilteredCartas] = useState([]);
   const [selectedCarta, setSelectedCarta] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const cardsPerPage = 3;
+  const [suggestions, setSuggestions] = useState([]);
 
-  
   useEffect(() => {
     const fetchCartas = async () => {
       try {
@@ -23,7 +22,7 @@ function ListaDeCartas() {
         const data = await response.json();
         setCartas(data.data);
         setFilteredCartas(data.data);
-        
+
         if (data.data.length > 0) {
           setSelectedCarta(data.data[0]);
         }
@@ -36,54 +35,49 @@ function ListaDeCartas() {
 
     fetchCartas();
   }, []);
-      
+
   useEffect(() => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const results = cartas.filter(carta =>
-        carta.name.toLowerCase().includes(term) || 
+        carta.name.toLowerCase().includes(term) ||
         carta.id.toLowerCase().includes(term)
       );
       setFilteredCartas(results);
-      setCurrentPage(1);
-      
-      if (results.length > 0) {
-        setSelectedCarta(results[0]);
-        setSelectedCarta(null);}
+
+      const newSuggestions = cartas
+        .filter(carta =>
+          carta.name.toLowerCase().startsWith(term)
+        )
+        .slice(0, 10);
+      setSuggestions(newSuggestions);
+
+      const cartaEncontradaPelaDigitacao = cartas.find(c => c.name.toLowerCase() === term || c.id.toLowerCase() === term);
+      if (cartaEncontradaPelaDigitacao && (!selectedCarta || selectedCarta.id !== cartaEncontradaPelaDigitacao.id)) {
+        setSelectedCarta(cartaEncontradaPelaDigitacao);
+      } else if (!cartaEncontradaPelaDigitacao && results.length > 0 && (!selectedCarta || !selectedCarta.name.toLowerCase().includes(term))) {
+         setSelectedCarta(results[0]);
+      } else if (!cartaEncontradaPelaDigitacao && results.length === 0 && selectedCarta) {
+        setSelectedCarta(null);
+      }
+
     } else {
       setFilteredCartas(cartas);
-      if (cartas.length > 0 && !selectedCarta) {
-        setSelectedCarta(cartas[0]);
+      setSuggestions([]);
+      if (cartas.length > 0 && selectedCarta?.id !== cartas[0].id) {
+          setSelectedCarta(cartas[0]);
+      } else if (cartas.length === 0) {
+          setSelectedCarta(null);
       }
     }
   }, [searchTerm, cartas]);
 
-  // Cálculos para paginação
-  const indexOfLastCard = currentPage * cardsPerPage;
-  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
-  const currentCards = filteredCartas.slice(indexOfFirstCard, indexOfLastCard);
-  
-  const totalPages = Math.ceil(filteredCartas.length / cardsPerPage);
-  
-  // Funções para navegar entre páginas
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-  
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+  const handleSuggestionClick = (cartaSugerida) => {
+    setSearchTerm(cartaSugerida.name);
+    setSelectedCarta(cartaSugerida);
+    setSuggestions([]);
   };
 
-  // Função para selecionar uma carta quando o usuário clica
-  const handleSelectCarta = (carta) => {
-    setSelectedCarta(carta);                          // Atualiza a carta selecionada
-  };
-
-  // Mensagens de carregamento e erro
   if (loading) {
     return <p className="text-center mt-4">Carregando cartas...</p>;
   }
@@ -93,9 +87,8 @@ function ListaDeCartas() {
   }
 
   return (
-    <div className="container">
-      {/* Barra de pesquisa no topo */}
-      <div className="row mb-4 p-3 border">
+    <div className={`container ${styles.containerPrincipal}`}>
+      <div className={`row mb-4 p-3 border ${styles.searchBar}`}>
         <div className="col-12">
           <input
             type="text"
@@ -104,27 +97,37 @@ function ListaDeCartas() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && suggestions.length > 0 && (
+            <ul className={styles.suggestionsList}>
+              {suggestions.map((carta) => (
+                <li key={carta.id} onMouseDown={(e) => e.preventDefault()} onClick={() => handleSuggestionClick(carta)}>
+                  <img
+                    src={carta.images?.small}
+                    alt={carta.name}
+                    className={styles.suggestionImage}
+                  />
+                  <span>{carta.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-      
-      {/* Área principal para exibir a carta selecionada */}
-      <div className="row mb-4 p-3 border">
-        {selectedCarta ? (
-          <div className="col-12 d-flex">
-            {/* Lado esquerdo: Imagem da carta */}
-            <div className="col-6 d-flex justify-content-center align-items-center">
+
+      <div className={`row mb-4 p-3 border ${styles.selectedCardSection}`}>
+        {selectedCarta && (
+          <>
+            <div className={`col-6 ${styles.selectedCardImageContainer}`}>
               {selectedCarta.images?.small && (
                 <img
                   src={selectedCarta.images.small}
                   alt={selectedCarta.name}
-                  className="img-fluid rounded"
-                  style={{ maxHeight: '350px' }}
+                  className={`img-fluid rounded ${styles.cardImage}`}
                 />
               )}
             </div>
-            
-            {/* Lado direito: Atributos da carta */}
-            <div className="col-6">
+
+            <div className={`col-6 ${styles.cardDetails}`}>
               <h2 className="h4 mb-3">{selectedCarta.name}</h2>
               <div className="card">
                 <div className="card-body">
@@ -152,63 +155,11 @@ function ListaDeCartas() {
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="col-12 text-center p-5">
-            <p>Nenhuma carta selecionada ou encontrada.</p>
-          </div>
+          </>
         )}
       </div>
-      
-      {/* Barra de navegação com as miniaturas das cartas */}
-      <div className="row mb-4 p-3 border">
-        <div className="col-12">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <button
-              className="btn btn-primary" 
-              onClick={prevPage} 
-              disabled={currentPage === 1}
-            >
-              Anterior
-            </button>
-            <span>Página {currentPage} de {totalPages}</span>
-            <button
-              className="btn btn-primary" 
-              onClick={nextPage} 
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
-              Próximo
-            </button>
-          </div>
-          
-          <div className="row">
-            {currentCards.map(carta => (
-              <div key={carta.id} className="col-4 mb-3">
-                <div 
-                  className={`card h-100 ${selectedCarta?.id === carta.id ? 'border-primary' : ''}`}
-                  onClick={() => handleSelectCarta(carta)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="card-body d-flex flex-column align-items-center">
-                    <h3 className="card-title h6 mb-2 text-center">{carta.name}</h3>
-                    {carta.images?.small && (
-                      <img
-                        src={carta.images.small}
-                        alt={carta.name}
-                        className="img-fluid rounded"
-                        style={{ maxHeight: '100px' }}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      {/* Área para informações adicionais */}
-      <div className="row mb-4 p-3 border">
+
+      <div className={`row mb-4 p-3 border ${styles.infoSection}`}>
         <div className="col-12">
           <h3 className="h5">Informações da Coleção</h3>
           <p>Total de cartas disponíveis: {filteredCartas.length}</p>
@@ -219,9 +170,8 @@ function ListaDeCartas() {
           )}
         </div>
       </div>
-      
-      {/* Rodapé */}
-      <div className="row mb-4 p-2 border">
+
+      <div className={`row mb-4 p-2 border ${styles.footerInfo}`}>
         <div className="col-12 text-center">
           <p className="mb-0 text-muted">Dados fornecidos pela API Pokémon TCG</p>
         </div>
